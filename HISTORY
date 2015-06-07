@@ -1,0 +1,11 @@
+realmeagic-0.2.1
++ moved all card specific varaibles into a struct (Christian Gmeiner)
++ added check for pci_enable_device (Christian Gmeiner)
++ own file for ioctl stuff (Christian Gmeiner)
++ removed opentimes - i think its not needed (Christian Gmeiner)
++ remove goto cleanup_irq (Christian Gmeiner)
++ added support for mtrr (Christian Gmeiner)
++ moved dma routines int to own file (Christian Gmeiner)
++ fixed checks for copy_from_user and copy_to_user (Christian Gmeiner)
++ added support for udev and devfs (Christian Gmeiner)
++ added pci_disable_device() (Christian Gmeiner)

@@ -1,0 +1,50 @@
+Required:
+  min. Kernel 2.6.10
+  Kernel source linked to /lib/modules/"your kernel version"/build
+
+Build:
+  (optional)MAKEDEV-EM8400.sh
+  make
+  /sbin/insmod realmagicdev84xx.ko
+
+Bugs:
+  please post me Sebastian Ortwein (kron@animeland.de)
+
+working scenario:
+   there are two dmabuf_table arrays, one (per board) in kernel space, one
+   in user space. Entries must be kept in sync, indices will
+   certainly match most of the times though it's not necessarily so
+
+   1. (allocation) user space finds an dmabuf_table entry with inuse=0, fills
+   Size field and calls ioctl(IOCTL_DMABUF_ALLOC) and the kernel:
+   - finds an entry with inuse=0
+   - copies the user struct to kernel struct
+   - calls dmaalloc(Size) and fills KernelVirtualAddress
+   - calls virt_to_phys and fills PhysicalAddress
+   - fills inuse=1 and ProcessVirtualAddress=0
+   - and returns the struct back to user
+   2. (mapping) user space calls mmap(...REMAP_DMA...) and the kernel:
+   - finds the (only) table entry with inuse=1 and ProcessVirtualAddress=0
+   - calls remap_pfn_range
+   - fills ProcessVirtualAddress on kernel side if successful
+   If mmap() successful, user space fills ProcessVirtualAddress field.
+
+   [... The two structs should be in sync and usable ...]
+
+   3. (unmapping) user space calls munmap --- no matching kernel code. If successful
+   zeroes ProcessVirtualAddress. The two structs are not in sync then.
+   4. (unallocation) user space calls ioctl(IOCTL_DMABUF_FREE) and the kernel
+   - finds the (only) table entry with inuse=1 and matching KernelVirtualAddress
+   - checks ProcessVirtualAddress==0 and calls dmafree
+   - put inuse=0
+   and returns the struct back to user
+   
+    Kernel side emergency situations:
+   * open method puts inuse=0 thru the dmabuf_table whatever a previous close() has done. This
+   may result in harmless dmaalloc'd space.
+   * release method calls dmafree *even if* ProcessVirtualAddress is not zero (warning).
+   What will happen if the process accesses the mapped space is unclear.
+   * init, cleanup module functions do not do anything towards this.
+
+   user space threads: (allocation,mapping) and (unmapping,unallocation) should
+   be made atomic some way (critical section).
